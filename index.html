@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>兒童口說加法練習</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app layout--portrait" id="appRoot">
+      <main
+        class="screen screen--home screen--active"
+        id="screenHome"
+        role="main"
+      >
+        <section class="card card--home" aria-labelledby="homeTitle">
+          <div class="home-headings">
+            <p class="eyebrow">家長陪同的小小心算練習</p>
+            <h1 class="title" id="homeTitle">口說加法練習</h1>
+            <p class="subtitle">
+              小朋友唸答案，家長左右滑或按大按鈕判定對錯。先選擇要練習的時間，再按開始。
+            </p>
+          </div>
+          <div class="time-options" role="radiogroup" aria-label="選擇練習時間">
+            <button class="time-option" data-seconds="60" aria-pressed="false">
+              1 分鐘
+            </button>
+            <button class="time-option" data-seconds="120" aria-pressed="false">
+              2 分鐘
+            </button>
+            <button class="time-option" data-seconds="180" aria-pressed="false">
+              3 分鐘
+            </button>
+          </div>
+
+          <div class="home-settings">
+            <div class="setting-group">
+              <p class="setting-label">相加後不超過</p>
+              <div
+                class="option-row"
+                role="radiogroup"
+                aria-label="題目總和上限"
+              >
+                <button
+                  class="setting-option"
+                  data-sum-limit="10"
+                  aria-pressed="false"
+                >
+                  10
+                </button>
+                <button
+                  class="setting-option"
+                  data-sum-limit="12"
+                  aria-pressed="false"
+                >
+                  12
+                </button>
+                <button
+                  class="setting-option"
+                  data-sum-limit="15"
+                  aria-pressed="false"
+                >
+                  15
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <p class="setting-label">題目是否包含 0</p>
+              <div class="option-row" role="radiogroup" aria-label="是否包含零">
+                <button
+                  class="setting-option"
+                  data-allow-zero="true"
+                  aria-pressed="false"
+                >
+                  會出現 0
+                </button>
+                <button
+                  class="setting-option"
+                  data-allow-zero="false"
+                  aria-pressed="false"
+                >
+                  不出現 0
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <p class="setting-label">答題時限（超過視為答錯）</p>
+              <div class="option-row" role="radiogroup" aria-label="答題時限">
+                <button
+                  class="setting-option"
+                  data-time-limit="1000"
+                  aria-pressed="false"
+                >
+                  1 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-time-limit="1500"
+                  aria-pressed="false"
+                >
+                  1.5 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-time-limit="2000"
+                  aria-pressed="false"
+                >
+                  2 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-time-limit="2500"
+                  aria-pressed="false"
+                >
+                  2.5 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-time-limit="3000"
+                  aria-pressed="false"
+                >
+                  3 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-time-limit="3500"
+                  aria-pressed="false"
+                >
+                  3.5 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-time-limit="4000"
+                  aria-pressed="false"
+                >
+                  4 秒
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            class="btn btn-primary btn-start"
+            id="btnStart"
+            disabled
+            aria-disabled="true"
+          >
+            開始練習
+          </button>
+        </section>
+      </main>
+
+      <main
+        class="screen screen--countdown"
+        id="screenCountdown"
+        aria-live="assertive"
+      >
+        <section class="card card--countdown">
+          <p class="countdown-text" id="countdownNumber" aria-label="倒數">3</p>
+          <p class="countdown-hint">準備滑動來判定對錯</p>
+        </section>
+      </main>
+
+      <main class="screen screen--play" id="screenPlay" aria-live="polite">
+        <section class="card card--play" aria-label="練習畫面">
+          <header class="play-topbar" role="region" aria-label="剩餘時間">
+            <div class="timer-pill">
+              <span class="timer-label">剩餘時間</span>
+              <strong class="timer-value" id="timeDisplay">01:00</strong>
+            </div>
+          </header>
+
+          <div
+            class="gesture-area"
+            id="gestureArea"
+            aria-label="滑動區域"
+            role="button"
+            tabindex="0"
+          >
+            <div class="card card--question" id="questionCard">0 + 0</div>
+          </div>
+
+
+          <div class="monkey-game" aria-label="猴子跑步遊戲">
+            <div class="game-track">
+              <div class="track-cell track-cell--danger" data-position="0">
+                <span class="emoji emoji--crocodile" id="crocodileEmoji">🐊</span>
+              </div>
+              <div class="track-cell" data-position="1"></div>
+              <div class="track-cell" data-position="2"></div>
+              <div class="track-cell" data-position="3"></div>
+              <div class="track-cell" data-position="4"></div>
+              <div class="track-cell track-cell--start" data-position="5">
+                <span class="emoji emoji--monkey" id="monkeyEmoji">🐵</span>
+              </div>
+              <div class="track-cell" data-position="6"></div>
+              <div class="track-cell" data-position="7"></div>
+              <div class="track-cell" data-position="8"></div>
+              <div class="track-cell" data-position="9"></div>
+            </div>
+            <div class="game-status" id="gameStatus">
+              <span class="status-text">答對往右，答錯或超時往左</span>
+            </div>
+          </div>
+          <div class="play-shortcuts" aria-hidden="true">
+            <p>左滑 = 錯誤，右滑 = 正確。也可使用鍵盤 ← / →。</p>
+          </div>
+        </section>
+      </main>
+
+      <main class="screen screen--result" id="screenResult">
+        <section class="card card--result" aria-live="assertive">
+          <header class="result-summary">
+            <p class="eyebrow">本輪表現</p>
+            <h2 class="result-score" id="resultScore">0</h2>
+            <p class="result-label" id="resultLabel">驚人</p>
+          </header>
+
+          <dl class="result-metrics">
+            <div>
+              <dt>正確</dt>
+              <dd id="resultCorrect">0</dd>
+            </div>
+            <div>
+              <dt>錯誤</dt>
+              <dd id="resultWrong">0</dd>
+            </div>
+            <div>
+              <dt>總題數</dt>
+              <dd id="resultTotal">0</dd>
+            </div>
+            <div>
+              <dt>正確率</dt>
+              <dd id="resultAccuracy">0%</dd>
+            </div>
+          </dl>
+
+          <section class="result-level" id="resultLevel" role="status">
+            <p class="level-title" id="levelTitle">驚人</p>
+            <p class="level-message" id="levelMessage">持續維持這個速度！</p>
+            <div
+              class="level-effects"
+              id="levelEffects"
+              aria-hidden="true"
+            ></div>
+          </section>
+
+          <div id="slowestQuestions" class="slowest-questions"></div>
+
+          <div class="result-actions">
+            <button class="btn" id="btnBackHome">回首頁</button>
+            <button class="btn btn-primary" id="btnRetry">再來一次</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
