@@ -15,9 +15,13 @@
   const timeLimitButtons = Array.from(
     document.querySelectorAll("[data-time-limit]"),
   );
+  const slowThresholdButtons = Array.from(
+    document.querySelectorAll("[data-slow-threshold]"),
+  );
   const btnStart = document.getElementById("btnStart");
   const btnRetry = document.getElementById("btnRetry");
   const btnBackHome = document.getElementById("btnBackHome");
+  const btnPractice = document.getElementById("btnPractice");
   const countdownNumber = document.getElementById("countdownNumber");
   const timeDisplay = document.getElementById("timeDisplay");
   const questionCard = document.getElementById("questionCard");
@@ -42,23 +46,28 @@
 
   const levelConfig = {
     amazing: {
-      label: "驚人",
-      message: "速度與準確度都滿點，保持住！",
+      label: "太驚人了",
+      message: "速度與準確度都滿點，保持佳績！",
       animation: "confetti",
     },
     excellent: {
       label: "超級棒",
-      message: "節奏俐落又穩定，距離滿分超近！",
+      message: "節奏俐落又穩定，距離滿分越來越近！",
+      animation: "confetti",
+    },
+    awesome: {
+      label: "厲害",
+      message: "表現很好，繼續加油！",
       animation: "bubbles",
     },
     good: {
       label: "不錯",
-      message: "漸入佳境，再多練幾題就更熟悉囉。",
+      message: "漸入佳境，再多練幾次就更熟悉囉。",
       animation: "rings",
     },
     tryagain: {
       label: "再加油",
-      message: "穩住呼吸，慢慢算、慢慢唸，下次一定更好。",
+      message: "穩住呼吸，慢慢算，下次一定更好。",
       animation: "shake",
     },
   };
@@ -67,7 +76,8 @@
     selectedSeconds: 0,
     sumLimit: null,
     allowZero: null,
-    questionTimeLimit: 2000,
+    questionTimeLimit: 0,
+    slowThreshold: 0,
     remainingSeconds: 0,
     timerId: null,
     countdownId: null,
@@ -84,6 +94,8 @@
     monkeyPosition: 5,
     questionTimerId: null,
     gameOver: false,
+    practiceMode: false,
+    practiceNumbers: null,
   };
 
   let effectCleanup = null;
@@ -106,8 +118,10 @@
   };
 
   const hasRequiredSelections = () =>
-    Boolean(state.selectedSeconds && state.sumLimit && state.questionTimeLimit) &&
-    typeof state.allowZero === "boolean";
+    Boolean(state.selectedSeconds && state.sumLimit) &&
+    typeof state.allowZero === "boolean" &&
+    typeof state.questionTimeLimit === "number" &&
+    typeof state.slowThreshold === "number";
 
   const updateStartButtonState = () => {
     const ready = hasRequiredSelections();
@@ -253,6 +267,11 @@
   };
 
   const buildQuestionPool = () => {
+    // 如果是加強練習模式，使用特定數字產生題庫
+    if (state.practiceMode && state.practiceNumbers) {
+      return buildPracticeQuestionPool();
+    }
+
     const sums = getBalancedSums();
     if (!sums.length) {
       return [];
@@ -379,6 +398,11 @@
   const startQuestionTimer = () => {
     if (state.questionTimerId) {
       clearTimeout(state.questionTimerId);
+    }
+
+    // 如果設定為不限時（0），則不啟動計時器
+    if (state.questionTimeLimit === 0) {
+      return;
     }
 
     state.questionTimerId = setTimeout(() => {
@@ -642,8 +666,22 @@
     });
   });
 
+  slowThresholdButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.slowThreshold = parseInt(button.dataset.slowThreshold, 10);
+      slowThresholdButtons.forEach((btn) =>
+        btn.setAttribute("aria-pressed", btn === button ? "true" : "false"),
+      );
+      updateStartButtonState();
+    });
+  });
+
   btnStart.addEventListener("click", startCountdown);
-  btnRetry.addEventListener("click", startCountdown);
+  btnRetry.addEventListener("click", () => {
+    state.practiceMode = false;
+    state.practiceNumbers = null;
+    startCountdown();
+  });
 
   const goHome = () => {
     stopTimer();
@@ -651,9 +689,122 @@
     resetAnimations();
     showScreen("home");
     resetSelection();
+    state.practiceMode = false;
+    state.practiceNumbers = null;
   };
 
   btnBackHome.addEventListener("click", goHome);
+
+  // === 加強練習功能 ===
+  const analyzeDifficultNumbers = () => {
+    // 統計每個數字在錯誤題目和慢速題目中出現的次數
+    const numberErrors = {};
+
+    state.answerLog.forEach(log => {
+      // 包含答錯的題目，以及答對但超過慢速門檻的題目（當 slowThreshold > 0 時）
+      const isSlow = state.slowThreshold > 0 && log.duration > state.slowThreshold;
+      if (!log.isCorrect || isSlow) {
+        numberErrors[log.a] = (numberErrors[log.a] || 0) + 1;
+        numberErrors[log.b] = (numberErrors[log.b] || 0) + 1;
+      }
+    });
+
+    // 轉換為陣列並排序
+    const sortedNumbers = Object.entries(numberErrors)
+      .map(([num, count]) => ({ num: parseInt(num), count }))
+      .sort((a, b) => b.count - a.count);
+
+    // 取出所有出現過的數字（不限制數量）
+    const allDifficultNumbers = sortedNumbers.map(item => item.num);
+
+    // 在 console 印出分析結果
+    console.log('📊 數字出現次數統計:');
+    sortedNumbers.forEach(item => {
+      console.log(`  數字 ${item.num}: 出現 ${item.count} 次`);
+    });
+
+    return allDifficultNumbers.length > 0 ? allDifficultNumbers : null;
+  };
+
+  const buildPracticeQuestionPool = () => {
+    if (!state.practiceNumbers || state.practiceNumbers.length === 0) {
+      return buildQuestionPool();
+    }
+
+    const pool = [];
+    const numbers = state.practiceNumbers;
+
+    // 產生所有可能的組合（包括自己跟自己相加）
+    for (let i = 0; i < numbers.length; i++) {
+      for (let j = 0; j < numbers.length; j++) {
+        const a = numbers[i];
+        const b = numbers[j];
+        const sum = a + b;
+
+        // 檢查是否符合總和限制
+        if (state.sumLimit && sum > state.sumLimit) {
+          continue;
+        }
+
+        // 檢查是否符合零的設定
+        if (isZeroPairDisallowed(a, b)) {
+          continue;
+        }
+
+        pool.push({ a, b, label: `${a} + ${b}` });
+      }
+    }
+
+    // 如果組合太少，重複添加以達到足夠數量
+    if (pool.length > 0) {
+      const targetSize = Math.max(50, pool.length * 3);
+      const expandedPool = [];
+      while (expandedPool.length < targetSize) {
+        expandedPool.push(...pool);
+      }
+      return shuffleArray(expandedPool.slice(0, targetSize));
+    }
+
+    // 如果沒有有效組合，回到正常模式
+    return buildQuestionPool();
+  };
+
+  const updatePracticeButtonVisibility = () => {
+    if (!btnPractice) return;
+
+    const wrongAnswers = state.answerLog.filter(log => !log.isCorrect);
+
+    // 只有當有錯誤題目時才顯示加強練習按鈕
+    if (wrongAnswers.length >= 2) {
+      btnPractice.style.display = 'inline-block';
+    } else {
+      btnPractice.style.display = 'none';
+    }
+  };
+
+  const startPracticeMode = () => {
+    const difficultNumbers = analyzeDifficultNumbers();
+
+    if (!difficultNumbers || difficultNumbers.length === 0) {
+      alert('找不到需要加強的數字，將進行一般練習。');
+      startCountdown();
+      return;
+    }
+
+    // 設定加強練習模式
+    state.practiceMode = true;
+    state.practiceNumbers = difficultNumbers;
+
+    // 在 console 印出加強練習的數字
+    console.log('💪 加強練習模式啟動！');
+    console.log('需要加強的數字:', difficultNumbers);
+    console.log('將產生包含這些數字的題目進行練習');
+
+    // 開始倒數
+    startCountdown();
+  };
+
+  btnPractice.addEventListener('click', startPracticeMode);
 
   const resetAnimations = () => {
     if (effectCleanup) {
@@ -685,6 +836,7 @@
     resultAccuracy.textContent = `${accuracy}%`;
     renderSlowestQuestions();
     renderResultLevel(levelKey);
+    updatePracticeButtonVisibility();
   };
 
   const renderSlowestQuestions = () => {
@@ -694,17 +846,24 @@
     // 篩選答錯的題目
     const wrongAnswers = state.answerLog.filter(log => !log.isCorrect);
 
-    // 篩選答對但超過1秒的題目
-    const slowCorrectAnswers = state.answerLog
-      .filter(log => log.isCorrect && log.duration > 1000)
-      .sort((a, b) => b.duration - a.duration);
+    // 篩選答對但超過門檻的題目（只有當 slowThreshold > 0 時才篩選）
+    const slowCorrectAnswers = state.slowThreshold > 0
+      ? state.answerLog
+          .filter(log => log.isCorrect && log.duration > state.slowThreshold)
+          .sort((a, b) => b.duration - a.duration)
+      : [];
 
+    const thresholdSeconds = (state.slowThreshold / 1000).toFixed(1);
     if (wrongAnswers.length === 0 && slowCorrectAnswers.length === 0) {
-      slowestContainer.innerHTML = '<div class="slowest-empty">所有題目都答對且在1秒內完成！太棒了！🎉</div>';
+      if (state.slowThreshold > 0) {
+        slowestContainer.innerHTML = `<div class="slowest-empty">所有題目都答對且在${thresholdSeconds}秒內完成！太棒了！🎉</div>`;
+      } else {
+        slowestContainer.innerHTML = '<div class="slowest-empty">所有題目都答對！太棒了！🎉</div>';
+      }
       return;
     }
 
-    let htmlContent = '';
+    let htmlContent = '<div class="slowest-grid">';
 
     // 顯示答錯的題目
     if (wrongAnswers.length > 0) {
@@ -726,7 +885,7 @@
       `;
     }
 
-    // 顯示答對但超過1秒的題目
+    // 顯示答對但超過門檻的題目
     if (slowCorrectAnswers.length > 0) {
       const slowHtml = slowCorrectAnswers.map((log, index) => {
         const seconds = (log.duration / 1000).toFixed(1);
@@ -739,12 +898,13 @@
 
       htmlContent += `
         <div class="slowest-section">
-          <div class="slowest-title slowest-title--slow">答對但超過1秒的 ${slowCorrectAnswers.length} 題</div>
+          <div class="slowest-title slowest-title--slow">答對但超過${thresholdSeconds}秒的 ${slowCorrectAnswers.length} 題</div>
           <div class="slowest-list">${slowHtml}</div>
         </div>
       `;
     }
 
+    htmlContent += '</div>';
     slowestContainer.innerHTML = htmlContent;
   };
 
@@ -756,6 +916,7 @@
     resultLevel.classList.remove(
       "level-amazing",
       "level-excellent",
+      "level-awesome",
       "level-good",
       "level-tryagain",
     );
@@ -779,6 +940,9 @@
         spawnConfetti(42);
         break;
       case "excellent":
+        spawnConfetti(28);
+        break;
+      case "awesome":
         spawnBubblesAndStars();
         break;
       case "good":
@@ -862,7 +1026,8 @@
 
   const getLevelKey = (score) => {
     if (score >= 30) return "amazing";
-    if (score >= 20) return "excellent";
+    if (score >= 26) return "excellent";
+    if (score >= 20) return "awesome";
     if (score >= 15) return "good";
     return "tryagain";
   };
@@ -871,7 +1036,8 @@
     state.selectedSeconds = 0;
     state.sumLimit = null;
     state.allowZero = null;
-    state.questionTimeLimit = 2000;
+    state.questionTimeLimit = 0;
+    state.slowThreshold = 0;
     state.questionPool = [];
     state.questionIndex = 0;
     btnStart.disabled = true;
@@ -880,6 +1046,7 @@
     sumButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
     zeroButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
     timeLimitButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+    slowThresholdButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
     updateStartButtonState();
   };
 

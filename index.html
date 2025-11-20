@@ -99,6 +99,13 @@
               <div class="option-row" role="radiogroup" aria-label="答題時限">
                 <button
                   class="setting-option"
+                  data-time-limit="0"
+                  aria-pressed="false"
+                >
+                  不限時
+                </button>
+                <button
+                  class="setting-option"
                   data-time-limit="1000"
                   aria-pressed="false"
                 >
@@ -145,6 +152,54 @@
                   aria-pressed="false"
                 >
                   4 秒
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <p class="setting-label">答題限速（超過算慢速）</p>
+              <div class="option-row" role="radiogroup" aria-label="慢速答題門檻">
+                <button
+                  class="setting-option"
+                  data-slow-threshold="0"
+                  aria-pressed="false"
+                >
+                  不限速
+                </button>
+                <button
+                  class="setting-option"
+                  data-slow-threshold="1000"
+                  aria-pressed="false"
+                >
+                  1 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-slow-threshold="1500"
+                  aria-pressed="false"
+                >
+                  1.5 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-slow-threshold="2000"
+                  aria-pressed="false"
+                >
+                  2 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-slow-threshold="2500"
+                  aria-pressed="false"
+                >
+                  2.5 秒
+                </button>
+                <button
+                  class="setting-option"
+                  data-slow-threshold="3000"
+                  aria-pressed="false"
+                >
+                  3 秒
                 </button>
               </div>
             </div>
@@ -259,6 +314,7 @@
 
           <div class="result-actions">
             <button class="btn" id="btnBackHome">回首頁</button>
+            <button class="btn btn-accent" id="btnPractice">💪加強練習</button>
             <button class="btn btn-primary" id="btnRetry">再來一次</button>
           </div>
         </section>

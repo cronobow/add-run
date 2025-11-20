@@ -167,6 +167,13 @@ textarea {
   box-shadow: 0 14px 30px rgba(43, 140, 255, 0.35);
 }
 
+.btn-accent {
+  background: linear-gradient(135deg, #ff6b6b, #ffa99f);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 14px 30px rgba(255, 107, 107, 0.35);
+}
+
 .btn:focus-visible {
   outline: 3px solid rgba(43, 140, 255, 0.35);
   outline-offset: 2px;
@@ -401,6 +408,10 @@ textarea {
   justify-content: center;
 }
 
+#btnPractice {
+  display: none;
+}
+
 /* Slowest questions section */
 .slowest-questions {
   margin-top: 24px;
@@ -408,6 +419,19 @@ textarea {
   background: rgba(255, 255, 255, 0.5);
   border-radius: 16px;
   backdrop-filter: blur(10px);
+}
+
+.slowest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .slowest-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .slowest-title {
@@ -419,7 +443,10 @@ textarea {
 }
 
 .slowest-section {
-  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 16px;
+  border-radius: 12px;
+  min-width: 0;
 }
 
 .slowest-section:last-child {
@@ -523,6 +550,15 @@ textarea {
 }
 
 .level-excellent {
+  background: radial-gradient(
+    circle at top,
+    #ffd700,
+    #ffb347 50%,
+    #ff8c42 100%
+  );
+}
+
+.level-awesome {
   background: radial-gradient(circle at top, #5ef8ff, #0f8cf1);
 }
 
