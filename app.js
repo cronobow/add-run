@@ -316,10 +316,18 @@
     const question = getNextQuestionFromPool();
     state.currentQuestionStartTime = Date.now();
     state.currentQuestion = question;
+    // 確保 no-transition 類別存在時，清除所有動畫相關樣式
+    questionCard.classList.remove("slide-left", "slide-right", "pop");
+    questionCard.style.transform = "";
+    questionCard.style.transition = "";
+    // 更新文字
     questionCard.textContent = question.label;
-    questionCard.classList.remove("slide-left", "slide-right");
-    questionCard.classList.add("pop");
-    setTimeout(() => questionCard.classList.remove("pop"), 600);
+    // 強制重排
+    void questionCard.offsetHeight;
+    // 移除 no-transition 讓卡片恢復正常
+    requestAnimationFrame(() => {
+      questionCard.classList.remove("no-transition");
+    });
     startQuestionTimer();
   };
 
@@ -508,11 +516,16 @@
       hasBeenCalled = true;
       questionCard.removeEventListener("transitionend", handle);
       questionCard.classList.remove("slide-left", "slide-right");
+      // 加上 no-transition 類別來禁用 CSS transition
+      questionCard.classList.add("no-transition");
+      // 清除任何殘留的 transform
+      questionCard.style.transform = "";
+      questionCard.style.transition = "";
       state.cardLocked = false;
       callback();
     };
     questionCard.addEventListener("transitionend", handle);
-    setTimeout(handle, 320);
+    setTimeout(handle, 180);
   };
 
   const registerAnswer = (type) => {
@@ -590,6 +603,8 @@
     swipeData.pointerId = null;
     swipeData.dragging = false;
     questionCard.style.transform = "";
+    // 恢復過渡效果
+    questionCard.style.transition = "";
   };
 
   gestureArea.addEventListener("pointerdown", (event) => {
@@ -597,6 +612,8 @@
     swipeData.pointerId = event.pointerId;
     swipeData.startX = event.clientX;
     swipeData.dragging = true;
+    // 禁用過渡效果以防止 Safari 跳動
+    questionCard.style.transition = "none";
     gestureArea.setPointerCapture(event.pointerId);
   });
 

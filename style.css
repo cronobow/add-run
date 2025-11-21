@@ -255,9 +255,14 @@ textarea {
   border-radius: 28px;
   min-width: min(520px, 90%);
   text-align: center;
+  background: #faf8c2;
   transition:
-    transform 0.25s ease,
-    opacity 0.25s ease;
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.card--question.no-transition {
+  transition: none !important;
 }
 
 .card--question.pop {
