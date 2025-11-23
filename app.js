@@ -714,13 +714,17 @@
 
   // === 加強練習功能 ===
   const analyzeDifficultNumbers = () => {
-    // 統計每個數字在錯誤題目和慢速題目中出現的次數
+    // 統計每個數字在錯誤題目、超時題目和慢速題目中出現的次數
     const numberErrors = {};
 
     state.answerLog.forEach(log => {
-      // 包含答錯的題目，以及答對但超過慢速門檻的題目（當 slowThreshold > 0 時）
+      // 包含以下情況：
+      // 1. 答錯的題目（包括超時）
+      // 2. 答對但超過慢速門檻的題目（當 slowThreshold > 0 時）
       const isSlow = state.slowThreshold > 0 && log.duration > state.slowThreshold;
-      if (!log.isCorrect || isSlow) {
+      const isWrongOrTimeout = !log.isCorrect || log.timeout;
+
+      if (isWrongOrTimeout || isSlow) {
         numberErrors[log.a] = (numberErrors[log.a] || 0) + 1;
         numberErrors[log.b] = (numberErrors[log.b] || 0) + 1;
       }
@@ -735,10 +739,14 @@
     const allDifficultNumbers = sortedNumbers.map(item => item.num);
 
     // 在 console 印出分析結果
-    console.log('📊 數字出現次數統計:');
-    sortedNumbers.forEach(item => {
-      console.log(`  數字 ${item.num}: 出現 ${item.count} 次`);
-    });
+    console.log('📊 需要加強的數字統計:');
+    if (sortedNumbers.length > 0) {
+      sortedNumbers.forEach(item => {
+        console.log(`  數字 ${item.num}: 出現 ${item.count} 次`);
+      });
+    } else {
+      console.log('  所有題目都正確且速度良好！');
+    }
 
     return allDifficultNumbers.length > 0 ? allDifficultNumbers : null;
   };
@@ -749,7 +757,14 @@
     }
 
     const pool = [];
-    const numbers = state.practiceNumbers;
+    // 加強練習時，過濾掉 0 和 1，只使用 2-9 的數字
+    const numbers = state.practiceNumbers.filter(num => num >= 2);
+
+    // 如果過濾後沒有數字，使用 2-9 作為預設
+    if (numbers.length === 0) {
+      console.log('⚠️ 過濾掉 0 和 1 後沒有數字，使用 2-9 進行加強練習');
+      numbers.push(2, 3, 4, 5, 6, 7, 8, 9);
+    }
 
     // 產生所有可能的組合（包括自己跟自己相加）
     for (let i = 0; i < numbers.length; i++) {
@@ -758,13 +773,11 @@
         const b = numbers[j];
         const sum = a + b;
 
+        // 加強練習不使用 0 和 1，所以這裡不需要再檢查
+        // a 和 b 已經保證是 2-9
+
         // 檢查是否符合總和限制
         if (state.sumLimit && sum > state.sumLimit) {
-          continue;
-        }
-
-        // 檢查是否符合零的設定
-        if (isZeroPairDisallowed(a, b)) {
           continue;
         }
 
@@ -789,10 +802,16 @@
   const updatePracticeButtonVisibility = () => {
     if (!btnPractice) return;
 
-    const wrongAnswers = state.answerLog.filter(log => !log.isCorrect);
+    // 統計所有錯誤題目（包括答錯和超時）以及慢速題目
+    const wrongOrTimeoutAnswers = state.answerLog.filter(log => !log.isCorrect || log.timeout);
+    const slowAnswers = state.slowThreshold > 0
+      ? state.answerLog.filter(log => log.isCorrect && log.duration > state.slowThreshold)
+      : [];
 
-    // 只有當有錯誤題目時才顯示加強練習按鈕
-    if (wrongAnswers.length >= 2) {
+    // 只要有任何錯誤、超時或慢速題目，就顯示加強練習按鈕
+    const hasProblematicQuestions = wrongOrTimeoutAnswers.length > 0 || slowAnswers.length > 0;
+
+    if (hasProblematicQuestions) {
       btnPractice.style.display = 'inline-block';
     } else {
       btnPractice.style.display = 'none';
