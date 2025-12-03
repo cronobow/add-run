@@ -18,6 +18,11 @@
   const slowThresholdButtons = Array.from(
     document.querySelectorAll("[data-slow-threshold]"),
   );
+  const operationButtons = Array.from(
+    document.querySelectorAll("[data-operation]"),
+  );
+  const sumLimitGroup = document.getElementById("sumLimitGroup");
+  const homeTitle = document.getElementById("homeTitle");
   const btnStart = document.getElementById("btnStart");
   const btnRetry = document.getElementById("btnRetry");
   const btnBackHome = document.getElementById("btnBackHome");
@@ -78,6 +83,7 @@
     allowZero: null,
     questionTimeLimit: 0,
     slowThreshold: 0,
+    operationType: null,
     remainingSeconds: 0,
     timerId: null,
     countdownId: null,
@@ -117,11 +123,22 @@
     timeDisplay.textContent = formatTime(state.remainingSeconds);
   };
 
-  const hasRequiredSelections = () =>
-    Boolean(state.selectedSeconds && state.sumLimit) &&
-    typeof state.allowZero === "boolean" &&
-    typeof state.questionTimeLimit === "number" &&
-    typeof state.slowThreshold === "number";
+  const hasRequiredSelections = () => {
+    // 基本必選項
+    const hasBasics = Boolean(state.selectedSeconds) &&
+      typeof state.allowZero === "boolean" &&
+      typeof state.questionTimeLimit === "number" &&
+      typeof state.slowThreshold === "number" &&
+      Boolean(state.operationType);
+
+    if (!hasBasics) return false;
+
+    // 加法需要 sumLimit，減法不需要
+    if (state.operationType === "add") {
+      return Boolean(state.sumLimit);
+    }
+    return true;
+  };
 
   const updateStartButtonState = () => {
     const ready = hasRequiredSelections();
@@ -266,12 +283,62 @@
     return shuffleArray(result);
   };
 
+  // === 減法題庫產生邏輯 ===
+  const getValidSubtractionPairs = () => {
+    const minOperand = state.allowZero ? 0 : 1;
+    const maxOperand = 9;
+    const pairs = [];
+    // A - B，其中 A >= B，答案可以等於 0
+    for (let a = minOperand; a <= maxOperand; a += 1) {
+      for (let b = minOperand; b <= a; b += 1) {
+        // 減法答案可以是 0（例如 5-5=0）
+        // 但如果不允許 0，則 a 和 b 都不能為 0
+        if (isZeroPairDisallowed(a, b)) {
+          continue;
+        }
+        pairs.push([a, b]);
+      }
+    }
+    return pairs;
+  };
+
+  const buildSubtractionQuestionPool = () => {
+    const pairs = getValidSubtractionPairs();
+    if (!pairs.length) {
+      return [];
+    }
+    const pool = [];
+    // 產生足夠數量的題目
+    while (pool.length < QUESTION_POOL_SIZE) {
+      const [a, b] = pairs[randomInt(0, pairs.length - 1)];
+      pool.push({ a, b, label: `${a} - ${b}`, operator: "subtract" });
+    }
+    const shuffled = shuffleArray(pool);
+    const deduplicated = removeDuplicateConsecutives(shuffled);
+    const ratioLimited = enforceZeroOneRatioCap(deduplicated, 0.1);
+    return ratioLimited;
+  };
+
+  // 計算題目答案（支援加法和減法）
+  const calculateAnswer = (question) => {
+    if (question.operator === "subtract" || state.operationType === "subtract") {
+      return question.a - question.b;
+    }
+    return question.a + question.b;
+  };
+
   const buildQuestionPool = () => {
     // 如果是加強練習模式，使用特定數字產生題庫
     if (state.practiceMode && state.practiceNumbers) {
       return buildPracticeQuestionPool();
     }
 
+    // 減法模式
+    if (state.operationType === "subtract") {
+      return buildSubtractionQuestionPool();
+    }
+
+    // 加法模式
     const sums = getBalancedSums();
     if (!sums.length) {
       return [];
@@ -430,7 +497,7 @@
         question: state.currentQuestion.label,
         a: state.currentQuestion.a,
         b: state.currentQuestion.b,
-        answer: state.currentQuestion.a + state.currentQuestion.b,
+        answer: calculateAnswer(state.currentQuestion),
         isCorrect: false,
         duration: duration,
         timeout: true,
@@ -547,7 +614,7 @@
         question: state.currentQuestion.label,
         a: state.currentQuestion.a,
         b: state.currentQuestion.b,
-        answer: state.currentQuestion.a + state.currentQuestion.b,
+        answer: calculateAnswer(state.currentQuestion),
         isCorrect: type === "correct",
         duration: duration,
       });
@@ -693,6 +760,29 @@
     });
   });
 
+  operationButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.operationType = button.dataset.operation;
+      operationButtons.forEach((btn) =>
+        btn.setAttribute("aria-pressed", btn === button ? "true" : "false"),
+      );
+      // 更新標題
+      if (homeTitle) {
+        homeTitle.textContent = state.operationType === "add" ? "口說加法練習" : "口說減法練習";
+      }
+      // 減法不需要「相加後不超過」選項
+      if (sumLimitGroup) {
+        sumLimitGroup.style.display = state.operationType === "subtract" ? "none" : "";
+      }
+      // 減法時清除 sumLimit 選擇
+      if (state.operationType === "subtract") {
+        state.sumLimit = null;
+        sumButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+      }
+      updateStartButtonState();
+    });
+  });
+
   btnStart.addEventListener("click", startCountdown);
   btnRetry.addEventListener("click", () => {
     state.practiceMode = false;
@@ -753,7 +843,18 @@
 
   const buildPracticeQuestionPool = () => {
     if (!state.practiceNumbers || state.practiceNumbers.length === 0) {
-      return buildQuestionPool();
+      // 避免遞迴呼叫，直接產生對應運算的題庫
+      if (state.operationType === "subtract") {
+        return buildSubtractionQuestionPool();
+      }
+      // 加法題庫邏輯
+      const sums = getBalancedSums();
+      if (!sums.length) return [];
+      const counts = distributeCounts(QUESTION_POOL_SIZE, sums.length);
+      const pool = sums.flatMap((sum, index) =>
+        generateQuestionsForSum(sum, counts[index]),
+      );
+      return shuffleArray(pool);
     }
 
     const pool = [];
@@ -766,22 +867,28 @@
       numbers.push(2, 3, 4, 5, 6, 7, 8, 9);
     }
 
-    // 產生所有可能的組合（包括自己跟自己相加）
+    const isSubtraction = state.operationType === "subtract";
+    const operator = isSubtraction ? "-" : "+";
+
+    // 產生所有可能的組合
     for (let i = 0; i < numbers.length; i++) {
       for (let j = 0; j < numbers.length; j++) {
         const a = numbers[i];
         const b = numbers[j];
-        const sum = a + b;
 
-        // 加強練習不使用 0 和 1，所以這裡不需要再檢查
-        // a 和 b 已經保證是 2-9
-
-        // 檢查是否符合總和限制
-        if (state.sumLimit && sum > state.sumLimit) {
-          continue;
+        if (isSubtraction) {
+          // 減法：A >= B，答案不能為負數
+          if (a < b) continue;
+          pool.push({ a, b, label: `${a} ${operator} ${b}`, operator: "subtract" });
+        } else {
+          // 加法
+          const sum = a + b;
+          // 檢查是否符合總和限制
+          if (state.sumLimit && sum > state.sumLimit) {
+            continue;
+          }
+          pool.push({ a, b, label: `${a} ${operator} ${b}` });
         }
-
-        pool.push({ a, b, label: `${a} + ${b}` });
       }
     }
 
@@ -795,8 +902,17 @@
       return shuffleArray(expandedPool.slice(0, targetSize));
     }
 
-    // 如果沒有有效組合，回到正常模式
-    return buildQuestionPool();
+    // 如果沒有有效組合，回到正常題庫
+    if (isSubtraction) {
+      return buildSubtractionQuestionPool();
+    }
+    const sums = getBalancedSums();
+    if (!sums.length) return [];
+    const counts = distributeCounts(QUESTION_POOL_SIZE, sums.length);
+    const fallbackPool = sums.flatMap((sum, index) =>
+      generateQuestionsForSum(sum, counts[index]),
+    );
+    return shuffleArray(fallbackPool);
   };
 
   const updatePracticeButtonVisibility = () => {
@@ -1074,6 +1190,7 @@
     state.allowZero = null;
     state.questionTimeLimit = 0;
     state.slowThreshold = 0;
+    state.operationType = null;
     state.questionPool = [];
     state.questionIndex = 0;
     btnStart.disabled = true;
@@ -1083,6 +1200,14 @@
     zeroButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
     timeLimitButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
     slowThresholdButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+    operationButtons.forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+    // 重設標題與顯示
+    if (homeTitle) {
+      homeTitle.textContent = "口說數學練習";
+    }
+    if (sumLimitGroup) {
+      sumLimitGroup.style.display = "";
+    }
     updateStartButtonState();
   };
 

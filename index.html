@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title>兒童口說加法練習</title>
+    <title>兒童口說數學練習</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -25,7 +25,7 @@
         <section class="card card--home" aria-labelledby="homeTitle">
           <div class="home-headings">
             <p class="eyebrow">家長陪同的小小心算練習</p>
-            <h1 class="title" id="homeTitle">口說加法練習</h1>
+            <h1 class="title" id="homeTitle">口說數學練習</h1>
             <p class="subtitle">
               小朋友唸答案，家長左右滑或按大按鈕判定對錯。先選擇要練習的時間，再按開始。
             </p>
@@ -44,6 +44,26 @@
 
           <div class="home-settings">
             <div class="setting-group">
+              <p class="setting-label">選擇運算類型</p>
+              <div class="option-row" role="radiogroup" aria-label="運算類型">
+                <button
+                  class="setting-option"
+                  data-operation="add"
+                  aria-pressed="false"
+                >
+                  ➕ 加法
+                </button>
+                <button
+                  class="setting-option"
+                  data-operation="subtract"
+                  aria-pressed="false"
+                >
+                  ➖ 減法
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-group" id="sumLimitGroup">
               <p class="setting-label">相加後不超過</p>
               <div
                 class="option-row"
