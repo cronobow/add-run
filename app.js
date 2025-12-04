@@ -260,6 +260,20 @@
     return filtered;
   };
 
+  // 移除題庫中所有完全重複的題目（同一題只保留一個）
+  const removeAllDuplicates = (pool) => {
+    const seen = new Set();
+    const unique = [];
+    for (const question of pool) {
+      const key = `${question.a},${question.b}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(question);
+      }
+    }
+    return unique;
+  };
+
   const hasOperandZeroOrOne = (question) =>
     question.a === 0 ||
     question.a === 1 ||
@@ -307,15 +321,15 @@
     if (!pairs.length) {
       return [];
     }
-    const pool = [];
-    // 產生足夠數量的題目
-    while (pool.length < QUESTION_POOL_SIZE) {
-      const [a, b] = pairs[randomInt(0, pairs.length - 1)];
-      pool.push({ a, b, label: `${a} - ${b}`, operator: "subtract" });
-    }
+    // 產生所有可能的題目（每題只出現一次）
+    const pool = pairs.map(([a, b]) => ({
+      a,
+      b,
+      label: `${a} - ${b}`,
+      operator: "subtract",
+    }));
     const shuffled = shuffleArray(pool);
-    const deduplicated = removeDuplicateConsecutives(shuffled);
-    const ratioLimited = enforceZeroOneRatioCap(deduplicated, 0.1);
+    const ratioLimited = enforceZeroOneRatioCap(shuffled, 0.1);
     return ratioLimited;
   };
 
@@ -347,17 +361,10 @@
     const pool = sums.flatMap((sum, index) =>
       generateQuestionsForSum(sum, counts[index]),
     );
-    if (pool.length < QUESTION_POOL_SIZE) {
-      const fallbackPairs = getValidPairsForSum(sums[0]);
-      for (let i = pool.length; i < QUESTION_POOL_SIZE; i += 1) {
-        const [a, b] =
-          fallbackPairs[randomInt(0, fallbackPairs.length - 1)] || [2, 2];
-        pool.push({ a, b, label: `${a} + ${b}` });
-      }
-    }
-    const shuffled = shuffleArray(pool);
-    const deduplicated = removeDuplicateConsecutives(shuffled);
-    const ratioLimited = enforceZeroOneRatioCap(deduplicated, 0.1);
+    // 移除所有重複題目
+    const uniquePool = removeAllDuplicates(pool);
+    const shuffled = shuffleArray(uniquePool);
+    const ratioLimited = enforceZeroOneRatioCap(shuffled, 0.1);
     return ratioLimited;
   };
 
@@ -854,7 +861,9 @@
       const pool = sums.flatMap((sum, index) =>
         generateQuestionsForSum(sum, counts[index]),
       );
-      return shuffleArray(pool);
+      // 移除重複題目
+      const uniquePool = removeAllDuplicates(pool);
+      return shuffleArray(uniquePool);
     }
 
     const pool = [];
@@ -870,7 +879,7 @@
     const isSubtraction = state.operationType === "subtract";
     const operator = isSubtraction ? "-" : "+";
 
-    // 產生所有可能的組合
+    // 產生所有可能的組合（每題只出現一次）
     for (let i = 0; i < numbers.length; i++) {
       for (let j = 0; j < numbers.length; j++) {
         const a = numbers[i];
@@ -892,14 +901,10 @@
       }
     }
 
-    // 如果組合太少，重複添加以達到足夠數量
+    // 移除重複題目並打亂順序
     if (pool.length > 0) {
-      const targetSize = Math.max(50, pool.length * 3);
-      const expandedPool = [];
-      while (expandedPool.length < targetSize) {
-        expandedPool.push(...pool);
-      }
-      return shuffleArray(expandedPool.slice(0, targetSize));
+      const uniquePool = removeAllDuplicates(pool);
+      return shuffleArray(uniquePool);
     }
 
     // 如果沒有有效組合，回到正常題庫
@@ -912,7 +917,9 @@
     const fallbackPool = sums.flatMap((sum, index) =>
       generateQuestionsForSum(sum, counts[index]),
     );
-    return shuffleArray(fallbackPool);
+    // 移除重複題目
+    const uniqueFallback = removeAllDuplicates(fallbackPool);
+    return shuffleArray(uniqueFallback);
   };
 
   const updatePracticeButtonVisibility = () => {
